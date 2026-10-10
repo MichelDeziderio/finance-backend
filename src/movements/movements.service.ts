@@ -33,7 +33,7 @@ export class MovementsService {
   async list(walletId: string, query: ListMovementsQueryDto): Promise<PaginatedMovementsResponse> {
     await this.wallets.assertExists(walletId);
     const filter = this.buildFilter(walletId, query);
-    const sort = { [query.sortBy]: query.sortOrder === 'asc' ? 1 : -1 } as Record<string, 1 | -1>;
+    const sort = { [query.sortBy]: query.sortOrder === 'desc' ? 1 : -1 } as Record<string, 1 | -1>;
     const skip = (query.page - 1) * query.limit;
     const [docs, total] = await Promise.all([
       this.movementModel.find(filter).sort(sort).skip(skip).limit(query.limit).lean(),
