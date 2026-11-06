@@ -1,19 +1,8 @@
 # Sistema de Controle Financeiro - Backend
 
-## AC1 - Cadastro de Movimentacoes
-
 ## Objetivo
 
-A AC1 estabelece a API para organizar dados financeiros por carteira, cadastrar categorias e registrar receitas e despesas com persistencia no MongoDB.
-
-## Funcionalidades
-
-- API REST com prefixo `/api`, CORS e validacao global de DTOs.
-- Cadastro, consulta, edicao e exclusao de carteiras.
-- Criacao automatica de categorias padrao por carteira.
-- Cadastro e listagem de categorias por carteira e por tipo.
-- Cadastro de receitas e despesas com validacao de categoria, valor e data.
-- Persistencia em MongoDB por meio do Mongoose.
+API NestJS para persistir e consultar dados financeiros organizados por carteira.
 
 ## Tecnologias
 
@@ -46,6 +35,7 @@ src/
   wallets/     Carteiras
   categories/  Categorias
   movements/   Movimentacoes
+  dashboard/   Indicadores financeiros
   common/      Tipos e utilitarios compartilhados
 ```
 
@@ -53,23 +43,36 @@ src/
 
 ### AC1 - Cadastro de Movimentacoes
 
-Estrutura inicial, carteiras, categorias, receitas, despesas, validacoes e persistencia inicial no MongoDB.
+- API REST com CORS e validacao de DTOs.
+- Carteiras e categorias padrao por carteira.
+- Categorias personalizadas por tipo.
+- Cadastro de receitas e despesas.
+- Persistencia inicial no MongoDB.
+
+Status: concluida.
+
+### AC2 - Historico de Movimentacoes
+
+- Listagem paginada de movimentacoes.
+- Busca por descricao.
+- Filtros por tipo, categoria e periodo.
+- Consulta, atualizacao e exclusao de movimentacoes.
+
+Status: concluida.
+
+### AC3 - Dashboard Financeiro
+
+- Resumo de receitas, despesas e saldo.
+- Despesas por categoria.
+- Comparativo de receitas e despesas por data.
+- Comparacao com o periodo anterior.
+- Filtro de periodo e categoria.
+- Ultimas 10 movimentacoes.
 
 Status: concluida.
 
 Status da AC1: concluida.
 
-## AC2 - Historico de Movimentacoes
-
-- Listagem paginada de movimentacoes por carteira.
-- Busca por descricao.
-- Filtros por tipo, categoria e periodo.
-- Consulta, atualizacao e exclusao de movimentacoes.
-
 Status da AC2: concluida.
 
-### AC2 - Historico de Movimentacoes
-
-Historico, filtros, edicao e exclusao de movimentacoes pela API.
-
-Status: concluida.
+Status da AC3: concluida.
