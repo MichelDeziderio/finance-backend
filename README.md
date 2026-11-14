@@ -197,7 +197,83 @@ flowchart TD
 | `incomeExpenseByDate` | Totais diários de entradas e saídas | Gráfico de linhas |
 | `recentMovements` | Até dez lançamentos recentes | Extrato resumido |
 
-O exemplo completo de resposta JSON e o detalhamento campo a campo estão em [fluxo-e-tratamento-de-dados-do-dashboard.md](../fluxo-e-tratamento-de-dados-do-dashboard.md).
+### Exemplo de resposta do dashboard
+
+```json
+{
+  "period": {
+    "startDate": "2026-11-01",
+    "endDate": "2026-11-30"
+  },
+  "summary": {
+    "totalIncome": 5800,
+    "totalExpense": 2350,
+    "balance": 3450,
+    "totalMovements": 24,
+    "averageExpense": 146.88
+  },
+  "highlights": {
+    "biggestIncome": {
+      "id": "mov_01",
+      "description": "Salário",
+      "amount": 5000,
+      "date": "2026-11-05",
+      "categoryId": "cat_01",
+      "type": "income"
+    },
+    "biggestExpense": {
+      "id": "mov_02",
+      "description": "Aluguel",
+      "amount": 1200,
+      "date": "2026-11-08",
+      "categoryId": "cat_02",
+      "type": "expense"
+    }
+  },
+  "comparison": {
+    "previousBalance": 2900,
+    "difference": 550,
+    "percentage": 19,
+    "hasPreviousPeriodData": true,
+    "improved": true
+  },
+  "categoryExpenses": [
+    {
+      "id": "cat_02",
+      "name": "Moradia",
+      "color": "#6366f1",
+      "amount": 1200,
+      "percentage": 51.1
+    },
+    {
+      "id": "cat_03",
+      "name": "Alimentação",
+      "color": "#f59e0b",
+      "amount": 650,
+      "percentage": 27.7
+    }
+  ],
+  "incomeExpenseByDate": [
+    { "date": "2026-11-05", "income": 5000, "expense": 0 },
+    { "date": "2026-11-08", "income": 0, "expense": 1200 },
+    { "date": "2026-11-12", "income": 800, "expense": 150 }
+  ],
+  "recentMovements": [
+    {
+      "id": "mov_10",
+      "type": "expense",
+      "description": "Supermercado",
+      "categoryId": "cat_03",
+      "amount": 250,
+      "date": "2026-11-25",
+      "paymentMethod": "CREDIT_CARD",
+      "notes": "Compras do mês"
+    }
+  ]
+}
+```
+
+> Os valores `type` seguem os enums da API (`income` e `expense`). Categorias sem despesas no período não aparecem em `categoryExpenses`.
 
 ## Modelo de dados do banco
 
@@ -337,7 +413,7 @@ O `DashboardService`:
 5. compara o saldo com uma janela anterior de mesma duração;
 6. identifica os maiores lançamentos e retorna as dez movimentações mais recentes.
 
-O contrato completo, incluindo exemplo de JSON, está em [fluxo-e-tratamento-de-dados-do-dashboard.md](../fluxo-e-tratamento-de-dados-do-dashboard.md).
+O contrato completo e o exemplo de JSON estão documentados na seção [Exemplo de resposta do dashboard](#exemplo-de-resposta-do-dashboard) deste README.
 
 ## Segurança e confiabilidade
 
