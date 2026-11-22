@@ -1,19 +1,16 @@
 import {
   Controller,
-  ForbiddenException,
   Get,
   Headers,
   Param,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { MailService } from './mail.service';
 
 @Controller('dev/mock-emails')
 export class MockMailController {
   constructor(
     private readonly mail: MailService,
-    private readonly config: ConfigService,
   ) {}
 
   private authorize(secret?: string): void {
