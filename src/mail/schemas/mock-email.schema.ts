@@ -3,6 +3,9 @@ import { HydratedDocument } from 'mongoose';
 
 @Schema({ collection: 'mock_emails', timestamps: true, versionKey: false })
 export class MockEmail {
+  // Campos gerados automaticamente pelo timestamps: true do Mongoose.
+  createdAt: Date;
+  updatedAt: Date;
   @Prop({ required: true, index: true })
   userId: string;
 
