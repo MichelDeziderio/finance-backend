@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { createHash, timingSafeEqual } from 'crypto';
+import { createHash, randomUUID, timingSafeEqual } from 'crypto';
 import { MockEmail, MockEmailDocument } from './schemas/mock-email.schema';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
@@ -126,7 +126,17 @@ export class MailService {
     const from = this.config.get<string>('MAIL_FROM', '"Finan$e" <suporte@finance.com>');
     const html = this.buildPasswordChangedHtml(name);
 
-    if (this.isMockEnabled()) return true;
+    if (this.isMockEnabled()) {
+      await this.mockEmails.create({
+        userId: `notification:${to.toLowerCase()}`,
+        to,
+        subject: '✅ Sua senha do Finan$e foi alterada com sucesso',
+        html,
+        tokenHash: this.tokenHash(randomUUID()),
+        expiresAt: new Date(Date.now() + 2 * 60 * 1000),
+      });
+      return true;
+    }
     if (!this.transporter) {
       this.logger.warn('Confirmação não enviada: SMTP não configurado');
       return false;
