@@ -97,17 +97,17 @@ export class AuthService {
       };
     }
 
-    // Gera token seguro e define validade de 1 hora
+    // No mock, validade exata de 2 minutos; no SMTP, mantém 1 hora.
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+    const lifetimeMs = this.mailService.isMockEnabled() ? 2 * 60 * 1000 : 60 * 60 * 1000;
+    const resetExpires = new Date(Date.now() + lifetimeMs);
 
     await this.usersService.update(user.id, {
       resetPasswordToken: resetToken,
       resetPasswordExpires: resetExpires,
     });
 
-    // Envia o e-mail estilizado via SMTP do Gmail
-    await this.mailService.sendPasswordResetEmail(user.email, user.name, resetToken);
+    await this.mailService.sendPasswordResetEmail(user.email, user.name, resetToken, user.id, resetExpires);
 
     return {
       message: 'Se o e-mail estiver cadastrado, as instruções de recuperação foram enviadas.',
@@ -128,6 +128,7 @@ export class AuthService {
       resetPasswordToken: null,
       resetPasswordExpires: null,
     });
+    await this.mailService.removeMockEmailByToken(dto.token);
 
     // Envia e-mail de aviso de que a senha foi alterada
     await this.mailService.sendPasswordChangedConfirmation(user.email, user.name);
