@@ -24,8 +24,8 @@ export class MovementsService {
     private readonly wallets: WalletsService,
   ) {}
 
-  async create(walletId: string, dto: CreateMovementDto) {
-    await this.wallets.assertExists(walletId);
+  async create(walletId: string, dto: CreateMovementDto, userId: string) {
+    await this.wallets.assertExists(walletId, userId);
     const category = await this.categories.findInWallet(
       walletId,
       dto.categoryId,
@@ -48,8 +48,9 @@ export class MovementsService {
   async list(
     walletId: string,
     query: ListMovementsQueryDto,
+    userId: string,
   ): Promise<PaginatedMovementsResponse> {
-    await this.wallets.assertExists(walletId);
+    await this.wallets.assertExists(walletId, userId);
 
     const filter = this.buildFilter(walletId, query);
 
@@ -85,8 +86,8 @@ export class MovementsService {
     };
   }
 
-  async findOne(walletId: string, movementId: string) {
-    await this.wallets.assertExists(walletId);
+  async findOne(walletId: string, movementId: string, userId: string) {
+    await this.wallets.assertExists(walletId, userId);
     const movement = await this.movementModel.findOne({
       id: movementId,
       walletId,
@@ -95,7 +96,8 @@ export class MovementsService {
     return movement.toJSON();
   }
 
-  async update(walletId: string, movementId: string, dto: UpdateMovementDto) {
+  async update(walletId: string, movementId: string, dto: UpdateMovementDto, userId: string) {
+    await this.wallets.assertExists(walletId, userId);
     const current = await this.movementModel.findOne({
       id: movementId,
       walletId,
@@ -123,7 +125,8 @@ export class MovementsService {
     return updated!.toJSON();
   }
 
-  async remove(walletId: string, movementId: string) {
+  async remove(walletId: string, movementId: string, userId: string) {
+    await this.wallets.assertExists(walletId, userId);
     const deleted = await this.movementModel.findOneAndDelete({
       id: movementId,
       walletId,

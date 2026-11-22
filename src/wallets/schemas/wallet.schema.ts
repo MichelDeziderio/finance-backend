@@ -5,12 +5,14 @@ import { WalletType } from '../../common/enums/finance.enums';
 @Schema({ timestamps: true, versionKey: false })
 export class Wallet {
   @Prop({ required: true, unique: true, index: true }) id: string;
+  @Prop({ required: true, index: true, immutable: true }) userId: string;
   @Prop({ required: true, trim: true, minlength: 2, maxlength: 40 }) name: string;
   @Prop({ required: true, enum: WalletType }) type: WalletType;
   @Prop({ required: true, match: /^#[0-9A-Fa-f]{6}$/ }) color: string;
 }
 export type WalletDocument = HydratedDocument<Wallet>;
 export const WalletSchema = SchemaFactory.createForClass(Wallet);
+WalletSchema.index({ userId: 1, createdAt: -1 });
 type WalletSerialized = Wallet & { _id?: Types.ObjectId };
 
 WalletSchema.set('toJSON', {

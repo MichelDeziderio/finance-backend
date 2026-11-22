@@ -17,38 +17,38 @@ export class WalletsService {
     @InjectModel(Movement.name) private readonly movementModel: Model<MovementDocument>,
   ) {}
 
-  async create(dto: CreateWalletDto) {
-    const wallet = await this.walletModel.create({ id: randomUUID(), ...dto });
+  async create(userId: string, dto: CreateWalletDto) {
+    const wallet = await this.walletModel.create({ id: randomUUID(), ...dto, userId });
     await this.categoryModel.insertMany(DEFAULT_CATEGORIES.map(category => ({
       id: randomUUID(), walletId: wallet.id, ...category, isDefault: true,
     })));
     return wallet.toJSON();
   }
 
-  async findAll() {
-    return this.walletModel.find().sort({ createdAt: -1 }).lean({ virtuals: false });
+  async findAll(userId: string) {
+    return this.walletModel.find({ userId }).sort({ createdAt: -1 }).lean({ virtuals: false });
   }
 
-  async findOne(id: string) {
-    const wallet = await this.walletModel.findOne({ id }).lean();
+  async findOne(id: string, userId: string) {
+    const wallet = await this.walletModel.findOne({ id, userId }).lean();
     if (!wallet) throw new NotFoundException('Carteira não encontrada');
     delete (wallet as any)._id;
     return wallet;
   }
 
-  async assertExists(id: string) {
-    const exists = await this.walletModel.exists({ id });
+  async assertExists(id: string, userId: string) {
+    const exists = await this.walletModel.exists({ id, userId });
     if (!exists) throw new NotFoundException('Carteira não encontrada');
   }
 
-  async update(id: string, dto: UpdateWalletDto) {
-    const wallet = await this.walletModel.findOneAndUpdate({ id }, dto, { new: true });
+  async update(id: string, userId: string, dto: UpdateWalletDto) {
+    const wallet = await this.walletModel.findOneAndUpdate({ id, userId }, dto, { new: true, runValidators: true });
     if (!wallet) throw new NotFoundException('Carteira não encontrada');
     return wallet.toJSON();
   }
 
-  async remove(id: string) {
-    const wallet = await this.walletModel.findOneAndDelete({ id });
+  async remove(id: string, userId: string) {
+    const wallet = await this.walletModel.findOneAndDelete({ id, userId });
     if (!wallet) throw new NotFoundException('Carteira não encontrada');
     await Promise.all([
       this.categoryModel.deleteMany({ walletId: id }),

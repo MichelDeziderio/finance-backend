@@ -16,8 +16,8 @@ export class DashboardService {
     private readonly wallets: WalletsService,
   ) {}
 
-  async get(walletId: string, query: DashboardQueryDto) {
-    await this.wallets.assertExists(walletId);
+  async get(walletId: string, query: DashboardQueryDto, userId: string) {
+    await this.wallets.assertExists(walletId, userId);
     const now = new Date();
     const start = query.startDate ? parseDateOnly(query.startDate, 'startDate') : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 12));
     const end = query.endDate ? parseDateOnly(query.endDate, 'endDate') : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 12));
