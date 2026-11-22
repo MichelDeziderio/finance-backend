@@ -1,4 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { createHash, randomUUID, timingSafeEqual } from 'crypto';
+import { MockEmail, MockEmailDocument } from './schemas/mock-email.schema';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
@@ -7,11 +11,55 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
   private transporter: nodemailer.Transporter | null = null;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    @InjectModel(MockEmail.name) private readonly mockEmails: Model<MockEmailDocument>,
+  ) {
     this.initTransporter();
   }
 
+  isMockEnabled(): boolean {
+    return this.config.get<string>('MAIL_MOCK', 'false').trim().toLowerCase() === 'true';
+  }
+
+  private tokenHash(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  assertMockInboxAccess(supplied?: string): void {
+    const expected = this.config.get<string>('MOCK_INBOX_KEY');
+    if (!expected || expected.length < 32 || !supplied) throw new ForbiddenException('Acesso negado');
+    const a = Buffer.from(expected);
+    const b = Buffer.from(supplied);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) throw new ForbiddenException('Acesso negado');
+  }
+
+  async listMockEmails() {
+    const docs = await this.mockEmails.find({ expiresAt: { $gt: new Date() } })
+      .select('_id to subject createdAt expiresAt').sort({ createdAt: -1 }).limit(50).lean();
+    return docs.map(doc => ({ id: String(doc._id), to: doc.to, subject: doc.subject, createdAt: doc.createdAt, expiresAt: doc.expiresAt }));
+  }
+
+  async getMockEmail(id: string) {
+    // Consulta por _id somente se o formato for válido, para não gerar erro 500 no Mongoose.
+    if (!/^[a-f0-9]{24}$/i.test(id)) throw new NotFoundException('E-mail não encontrado');
+    const mail = await this.mockEmails.findOne({ _id: id, expiresAt: { $gt: new Date() } }).lean();
+    if (!mail) throw new NotFoundException('E-mail não encontrado');
+    return { id: String(mail._id), to: mail.to, subject: mail.subject, html: mail.html, expiresAt: mail.expiresAt };
+  }
+
+  async removeMockEmailByToken(token: string): Promise<void> {
+    await this.mockEmails.deleteOne({ tokenHash: this.tokenHash(token) });
+  }
+
   private initTransporter() {
+    if (this.isMockEnabled()) {
+      if ((this.config.get<string>('MOCK_INBOX_KEY') || '').length < 32) {
+        throw new Error('MAIL_MOCK=true exige MOCK_INBOX_KEY com pelo menos 32 caracteres');
+      }
+      this.logger.log('MAIL_MOCK=true: envio simulado armazenado no MongoDB; SMTP desativado');
+      return;
+    }
     const host = this.config.get<string>('MAIL_HOST', 'smtp.gmail.com');
     const port = Number(this.config.get<number>('MAIL_PORT', 587));
     const secure = this.config.get<string>('MAIL_SECURE') === 'true';
@@ -19,9 +67,7 @@ export class MailService {
     const pass = this.config.get<string>('MAIL_PASS');
 
     if (!user || !pass) {
-      this.logger.warn(
-        '⚠️ Variáveis MAIL_USER ou MAIL_PASS não configuradas no .env. E-mails serão simulados no log do console.',
-      );
+      this.logger.warn('MAIL_MOCK=false: MAIL_USER/MAIL_PASS ausentes. O envio SMTP irá falhar até serem configurados.');
       return;
     }
 
@@ -30,28 +76,35 @@ export class MailService {
       port,
       secure,
       auth: { user, pass },
-      tls: {
-        rejectUnauthorized: false,
-      },
     });
 
     this.logger.log(`📧 Transporter SMTP configurado para ${host}:${port} (${user})`);
   }
 
-  async sendPasswordResetEmail(to: string, name: string, token: string): Promise<boolean> {
+  async sendPasswordResetEmail(to: string, name: string, token: string, userId: string, expiresAt: Date): Promise<boolean> {
     const frontendUrl = this.config.get<string>('FRONTEND_URL', 'http://localhost:4200').replace(/\/$/, '');
     const resetUrl = `${frontendUrl}/redefinir-senha?token=${token}`;
     const from = this.config.get<string>('MAIL_FROM', '"Finan$e" <suporte@finance.com>');
 
     const html = this.buildResetPasswordHtml(name, resetUrl);
 
-    if (!this.transporter) {
-      this.logger.log(`\n================ SIMULAÇÃO DE E-MAIL (SMTP NÃO CONFIGURADO) ================`);
-      this.logger.log(`Para: ${to} (${name})`);
-      this.logger.log(`Assunto: 🔐 Recuperação de Senha - Finan$e`);
-      this.logger.log(`Link de Redefinição: ${resetUrl}`);
-      this.logger.log(`============================================================================\n`);
+    if (this.isMockEnabled()) {
+      // Solicitações anteriores deste usuário ficam inválidas; o token válido é
+      // sempre o último que AuthService persistiu.
+      await this.mockEmails.deleteMany({ userId });
+      await this.mockEmails.create({
+        userId,
+        to,
+        subject: '🔐 Redefinição de Senha - Finan$e',
+        html,
+        tokenHash: this.tokenHash(token),
+        expiresAt,
+      });
       return true;
+    }
+
+    if (!this.transporter) {
+      throw new ServiceUnavailableException('SMTP não configurado');
     }
 
     try {
@@ -64,8 +117,7 @@ export class MailService {
       this.logger.log(`✅ E-mail de redefinição de senha enviado com sucesso para ${to} (ID: ${info.messageId})`);
       return true;
     } catch (error: any) {
-      this.logger.error(`❌ Erro ao enviar e-mail via SMTP do Gmail: ${error?.message || error}`, error?.stack);
-      this.logger.log(`🔗 Link de recuperação (fallback): ${resetUrl}`);
+      this.logger.error('Falha ao enviar e-mail via SMTP. Confirme host e credenciais.');
       throw new Error(`Falha ao enviar e-mail de recuperação de senha: ${error?.message || error}`);
     }
   }
@@ -74,9 +126,20 @@ export class MailService {
     const from = this.config.get<string>('MAIL_FROM', '"Finan$e" <suporte@finance.com>');
     const html = this.buildPasswordChangedHtml(name);
 
-    if (!this.transporter) {
-      this.logger.log(`[E-mail simulado] Confirmação de troca de senha para: ${to}`);
+    if (this.isMockEnabled()) {
+      await this.mockEmails.create({
+        userId: `notification:${to.toLowerCase()}`,
+        to,
+        subject: '✅ Sua senha do Finan$e foi alterada com sucesso',
+        html,
+        tokenHash: this.tokenHash(randomUUID()),
+        expiresAt: new Date(Date.now() + 2 * 60 * 1000),
+      });
       return true;
+    }
+    if (!this.transporter) {
+      this.logger.warn('Confirmação não enviada: SMTP não configurado');
+      return false;
     }
 
     try {
@@ -279,7 +342,7 @@ export class MailService {
 
         <!-- ALERTA DE SEGURANÇA -->
         <div class="security-box">
-          ⏱️ <strong>Atenção:</strong> Este link é válido por <strong>1 hora</strong>. Se você não solicitou a alteração, nenhuma ação é necessária — sua senha atual permanecerá segura.
+          ⏱️ <strong>Atenção:</strong> Este link é válido por <strong>${this.isMockEnabled() ? '2 minutos' : '1 hora'}</strong>. Se você não solicitou a alteração, nenhuma ação é necessária — sua senha atual permanecerá segura.
         </div>
 
         <!-- FALLBACK -->
