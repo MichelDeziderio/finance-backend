@@ -58,3 +58,11 @@ O detalhe contém o HTML e link de teste; utilize Postman/Insomnia sob controle 
 - Redefinir depois de 120s: resposta de token inválido ou expirado.
 - Modo SMTP: verificar que o transporte SMTP é usado e que o inbox está indisponível.
 - Simular SMTP sem credenciais: deve falhar sem imprimir links de recuperação.
+
+## Inbox visual no navegador
+
+O endereço **/api/dev/mock-inbox** entrega uma página HTML (não JSON) com login por formulário, lista de mensagens ativas e pré-visualização do e-mail. O usuário informa a chave uma vez no formulário; o backend estabelece um cookie de sessão assinado com HMAC, `HttpOnly`, `Secure`, `SameSite=Strict` e expiração de 15 minutos. O cookie não contém a chave secreta. A lista só inclui mensagens ainda válidas; após os 2 minutos, os detalhes ficam indisponíveis.
+
+**Não** adicione a chave em parâmetros de URL. Uma query string `?x-mock-inbox-key=...` não equivale ao header homônimo. Endereços com segredo podem aparecer em históricos e logs: caso uma chave tenha sido divulgada dessa maneira, rotacione `MOCK_INBOX_KEY` na Vercel e faça redeploy.
+
+A tela é uma ferramenta de inspeção de testes. Não deve ser exposta como funcionalidade pública nem utilizada com contas/dados reais. Os endpoints JSON autenticados com header continuam disponíveis para Postman.
