@@ -17,16 +17,16 @@ export class CategoriesService {
     private readonly wallets: WalletsService,
   ) {}
 
-  async list(walletId: string, query: ListCategoriesQueryDto): Promise<CategoryResponse[]> {
-    await this.wallets.assertExists(walletId);
+  async list(walletId: string, query: ListCategoriesQueryDto, userId: string): Promise<CategoryResponse[]> {
+    await this.wallets.assertExists(walletId, userId);
     const filter: any = { walletId };
     if (query.type) filter.type = query.type;
     const items = await this.categoryModel.find(filter).sort({ isDefault: -1, name: 1 }).lean();
     return items.map(({ _id, ...item }) => item);
   }
 
-  async create(walletId: string, dto: CreateCategoryDto) {
-    await this.wallets.assertExists(walletId);
+  async create(walletId: string, dto: CreateCategoryDto, userId: string) {
+    await this.wallets.assertExists(walletId, userId);
     const duplicated = await this.categoryModel.findOne({
       walletId, type: dto.type, name: { $regex: `^${this.escape(dto.name.trim())}$`, $options: 'i' },
     });
@@ -41,8 +41,8 @@ export class CategoriesService {
     return category;
   }
 
-  async remove(walletId: string, categoryId: string) {
-    await this.wallets.assertExists(walletId);
+  async remove(walletId: string, categoryId: string, userId: string) {
+    await this.wallets.assertExists(walletId, userId);
     const category = await this.categoryModel.findOne({ id: categoryId, walletId });
     if (!category) throw new NotFoundException('Categoria não encontrada');
     if (category.isDefault) throw new BadRequestException('Categorias padrão não podem ser excluídas');
